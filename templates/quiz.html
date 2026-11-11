@@ -3,31 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>物种识别考试</title>
+  <title>{{ bank_title }} · 物种识别考试</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="{{ url_for('static', filename='js/quiz.js') }}" defer></script>
 </head>
-<body>
-  <header class="site-header"><span class="brand-mark" aria-hidden="true">◉</span><h1>物种识别考试</h1><span class="subtitle">物种名称识别练习</span></header>
+<body data-bank-title="{{ bank_title }}">
+  <header class="site-header quiz-header"><h1>{{ bank_title }}</h1><button id="leave-quiz" type="button" class="secondary" hidden>返回题库选择</button></header>
   <main>
     <p id="network-error" class="notice" role="alert" hidden></p>
     <section id="quiz" aria-label="当前题目" hidden>
-      <div class="progress-heading"><span>看图识别物种</span><span id="progress"></span></div>
+      <div class="progress-heading"><span>{{ bank_title }} · 看图识别</span><span id="progress"></span></div>
       <div class="progress-track"><div id="progress-bar"></div></div>
       <div id="question-images" class="image-grid"></div>
       <div class="answer-panel">
+        <div id="test-input">
         <label for="answer">物种名称</label>
         <input id="answer" type="text" placeholder="输入物种名称" autocomplete="off" autocapitalize="off" spellcheck="false">
         <div class="input-tools"><div class="characters" aria-label="特殊字符快捷输入"><button type="button" data-character="ä">ä</button><button type="button" data-character="ö">ö</button><button type="button" data-character="å">å</button></div><span class="hint">Enter 提交 · 再按一次进入下一题</span></div>
+        </div>
+        <p id="review-answer" class="feedback" hidden></p>
         <div id="feedback" class="feedback" role="status" aria-live="polite" hidden><strong id="verdict"></strong><span>正确答案：<b id="correct-answer"></b></span></div>
-        <button id="action" class="primary" type="button">提交</button>
+        <div class="question-actions">
+          <button id="previous" class="secondary" type="button" hidden>上一题</button>
+          <button id="action" class="primary" type="button">提交</button>
+        </div>
       </div>
     </section>
     <section id="result" hidden>
-      <div class="result-heading"><p class="eyebrow">本轮考试已完成</p><h2>本轮成绩</h2></div>
+      <div class="result-heading"><h2 id="result-title">{{ bank_title }} · 本轮成绩</h2></div>
+      <div id="test-results">
       <div class="stats"><div><strong id="total"></strong><span>总题数</span></div><div><strong id="correct"></strong><span>正确</span></div><div><strong id="wrong"></strong><span>错误</span></div><div><strong id="accuracy"></strong><span>正确率</span></div></div>
       <h3>错题回顾</h3><p id="perfect" hidden>本轮全部正确！</p><div id="mistakes"></div>
-      <button id="restart" type="button" class="primary">重新开始</button>
+      </div>
+      <button id="restart" type="button" class="primary">再练一次</button>
+      <button id="leave-result" type="button" class="secondary">选择其他题库</button>
     </section>
     <p id="loading">正在加载题库……</p>
   </main>

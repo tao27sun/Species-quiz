@@ -123,10 +123,10 @@ def _is_header(row, has_images):
     return bool(labels) and all(value == f"图片{i}" for i, value in labels)
 
 
-def load_species(path: Path) -> list[SpeciesQuestion]:
+def load_species(path: Path, sheet_name: str | None = None) -> list[SpeciesQuestion]:
     path = Path(path)
     if not path.is_file():
-        raise WorkbookError("找不到 quiz.xlsx，请将题库放在程序根目录后重新启动。")
+        raise WorkbookError(f"找不到 {path.name}，请将题库放在程序根目录后重新启动。")
     try:
         with zipfile.ZipFile(path) as archive:
             package = Package(archive)
@@ -134,13 +134,14 @@ def load_species(path: Path) -> list[SpeciesQuestion]:
             root_rels = ET.fromstring(archive.read("_rels/.rels"))
             workbook_part = next(r.attrib["Target"].lstrip("/") for r in root_rels
                                  if r.attrib["Type"].endswith("/officeDocument"))
-            sheet = package.xml(workbook_part).find("{*}sheets/{*}sheet")
+            sheets = package.xml(workbook_part).findall("{*}sheets/{*}sheet")
+            sheet = next((s for s in sheets if sheet_name is None or s.get("name") == sheet_name), None)
             if sheet is None:
-                raise WorkbookError("quiz.xlsx 中没有工作表。")
+                raise WorkbookError(f"找不到工作表“{sheet_name}”。" if sheet_name else f"{path.name} 中没有工作表。")
             rid = next(v for k, v in sheet.attrib.items() if k.endswith("}id"))
             kind, sheet_part = package.relationships(workbook_part)[rid]
             if kind != "worksheet":
-                raise WorkbookError("第一个工作表不是普通数据工作表。")
+                raise WorkbookError("所选工作表不是普通数据工作表。")
             images = _cell_images(package, workbook_part, sheet_part)
 
         by_row = {}
@@ -151,7 +152,7 @@ def load_species(path: Path) -> list[SpeciesQuestion]:
                 by_row.setdefault(row_number, []).append((column_number, image))
         workbook = load_workbook(path, read_only=True, data_only=True)
         try:
-            worksheet = workbook.worksheets[0]
+            worksheet = workbook[sheet.get("name")]
             questions, errors = [], []
             first_nonempty = True
             for row_number, row in enumerate(worksheet.iter_rows(), start=1):
@@ -181,4 +182,4 @@ def load_species(path: Path) -> list[SpeciesQuestion]:
     except WorkbookError:
         raise
     except Exception as exc:
-        raise WorkbookError("无法打开或解析 quiz.xlsx，请检查文件是否损坏、被占用或格式不受支持。") from exc
+        raise WorkbookError(f"无法打开或解析 {path.name}，请检查文件是否损坏、被占用或格式不受支持。") from exc

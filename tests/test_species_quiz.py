@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from openpyxl import Workbook
 from PIL import Image
 
-from app import ROOT, LocalServer, create_app, main
+from app import BANKS, ROOT, LocalServer, create_app, main
 from species_quiz.excel_loader import WorkbookError, load_species
 from species_quiz.models import SpeciesImage, SpeciesQuestion
 from species_quiz.quiz import Quiz, QuizError
@@ -100,7 +100,7 @@ class LoaderTests(unittest.TestCase):
         self.path = Path(self.temp.name) / "quiz.xlsx"
 
     def test_real_workbook(self):
-        bank = load_species(ROOT / "quiz.xlsx")
+        bank = load_species(ROOT / "species.xlsx", "Plants 8")
         self.assertEqual(len(bank), 67)
         self.assertEqual(sum(len(q.images) for q in bank), 124)
         images = {image.cell: image for question in bank for image in question.images}
@@ -108,7 +108,7 @@ class LoaderTests(unittest.TestCase):
         self.assertEqual(bank[0].row_number, 2)
         self.assertEqual(bank[-1].row_number, 68)
         # Independent XML reference walk for every cell, not just image counts.
-        with zipfile.ZipFile(ROOT / "quiz.xlsx") as z:
+        with zipfile.ZipFile(ROOT / "species.xlsx") as z:
             xml = lambda name: ET.fromstring(z.read(name))
             sheet = xml("xl/worksheets/sheet1.xml")
             metadata = xml("xl/metadata.xml")
@@ -233,7 +233,7 @@ class QuizTests(unittest.TestCase):
 
 class AppTests(unittest.TestCase):
     def test_real_workbook_complete_round(self):
-        bank = load_species(ROOT / "quiz.xlsx")
+        bank = load_species(ROOT / "species.xlsx", "Plants 8")
         by_row = {q.row_number: q for q in bank}
         client = create_app(questions=bank).test_client()
         state = client.get("/api/state").json
@@ -285,18 +285,69 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result["mistakes"], [])
 
     def test_error_page(self):
-        with patch("app.load_species", side_effect=WorkbookError("第 17 行缺图")), patch("flask.Flask.log_exception"):
-            with self.assertLogs(level="ERROR"):
-                client = create_app().test_client()
-        response = client.get("/")
+        client = create_app().test_client()
+        with patch("app.load_species", side_effect=WorkbookError("第 17 行缺图")):
+            response = client.post("/select", data={"bank": "Birds&Mammals 5-8", "mode": "test"})
         self.assertEqual(response.status_code, 503)
+        self.assertIn(BANKS["Birds&Mammals 5-8"], response.get_data(as_text=True))
         self.assertIn("第 17 行缺图", response.get_data(as_text=True))
         self.assertNotIn("Traceback", response.get_data(as_text=True))
-        self.assertEqual(client.get("/api/state").status_code, 503)
+        self.assertIn("选择题库", client.get("/").get_data(as_text=True))
+        with patch("app.load_species", return_value=[question()]):
+            self.assertEqual(client.post("/select", data={"bank": "Plants 8", "mode": "test"}).status_code, 303)
+
+    def test_select_and_complete_each_real_bank(self):
+        client = create_app().test_client()
+        self.assertIn("选择题库", client.get("/").get_data(as_text=True))
+        for sheet, total, images in zip(BANKS, (67, 43, 64), (124, 59, 90)):
+            with self.subTest(sheet=sheet):
+                response = client.post("/select", data={"bank": sheet, "mode": "test"}, follow_redirects=True)
+                self.assertIn(f"<h1>{BANKS[sheet]}</h1>", response.get_data(as_text=True))
+                state = client.get("/api/state").json
+                self.assertEqual(state["total"], total)
+                image_count = 0
+                for position in range(1, total + 1):
+                    self.assertEqual(state["position"], position)
+                    for url in state["images"]:
+                        self.assertEqual(client.get(url).status_code, 200)
+                        image_count += 1
+                    body = state | {"answer": ""}
+                    self.assertEqual(client.post("/api/submit", json=body).status_code, 200)
+                    state = client.post("/api/next", json=body).json
+                self.assertEqual(image_count, images)
+                self.assertEqual(state["status"], "FINISHED")
+                self.assertEqual(client.post("/api/leave", json=state).status_code, 200)
+                self.assertIn("选择题库", client.get("/").get_data(as_text=True))
+
+    def test_review_mode_shows_answers_and_advances_without_grading(self):
+        with patch("app.load_species", return_value=[question()]) as loader:
+            client = create_app().test_client()
+            self.assertIn("选择模式", client.get("/mode?bank=Plants%208").get_data(as_text=True))
+            loader.assert_not_called()
+            self.assertEqual(client.post("/select", data={"bank": "Plants 8", "mode": "review"}).status_code, 303)
+            state = client.get("/api/state").json
+            self.assertEqual(state["status"], "REVIEW")
+            self.assertEqual(state["correct_answer"], "metsäkuusi")
+            self.assertEqual(client.post("/api/submit", json=state | {"answer": "metsäkuusi"}).status_code, 409)
+            finished = client.post("/api/next", json=state).json
+            self.assertEqual(finished["status"], "FINISHED")
+            self.assertNotIn("accuracy", finished)
+            self.assertEqual(client.post("/api/restart", json=finished).json["status"], "REVIEW")
+
+    def test_review_previous_preserves_order(self):
+        client = create_app().test_client()
+        with patch("app.load_species", return_value=[question(2), question(3)]):
+            client.post("/select", data={"bank": "Plants 8", "mode": "review"})
+        first = client.get("/api/state").json
+        self.assertEqual(client.post("/api/previous", json=first).status_code, 409)
+        second = client.post("/api/next", json=first).json
+        self.assertEqual(client.post("/api/previous", json=second).json, first)
+        self.assertEqual(client.post("/api/next", json=first).json, second)
 
     def test_load_only_once(self):
         with patch("app.load_species", return_value=[question()]) as loader:
             client = create_app().test_client()
+            client.post("/select", data={"bank": "Plants 8", "mode": "test"})
             body = client.get("/api/state").json | {"answer": ""}
             client.post("/api/submit", json=body)
             client.post("/api/next", json=body)

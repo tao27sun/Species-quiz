@@ -7,8 +7,9 @@ class QuizError(ValueError):
 
 
 class Quiz:
-    def __init__(self, questions):
+    def __init__(self, questions, mode="test"):
         self.questions = questions
+        self.mode = mode
         self._start()
 
     def _start(self):
@@ -32,6 +33,8 @@ class Quiz:
 
     def submit(self, round_id, question_id, answer):
         self._check(round_id, question_id)
+        if self.mode == "review":
+            raise QuizError("复习模式无需提交答案。")
         if self.answered:
             raise QuizError("本题已经提交，不能重复作答。")
         if not isinstance(answer, str):
@@ -42,9 +45,15 @@ class Quiz:
 
     def next(self, round_id, question_id):
         self._check(round_id, question_id)
-        if not self.answered:
+        if self.mode == "test" and not self.answered:
             raise QuizError("请先提交本题答案。")
         self.position += 1
+
+    def previous(self, round_id, question_id):
+        self._check(round_id, question_id)
+        if self.mode != "review" or self.position == 0:
+            raise QuizError("当前没有可返回的复习题目。")
+        self.position -= 1
 
     def restart(self, round_id):
         if not self.finished or round_id != self.round_id:
@@ -56,7 +65,14 @@ class Quiz:
         return [f"/images/{question.row_number}/{i}" for i in range(len(question.images))]
 
     def state(self):
-        state = {"round_id": self.round_id, "total": len(self.order)}
+        state = {"round_id": self.round_id, "total": len(self.order), "mode": self.mode}
+        if self.mode == "review":
+            if self.finished:
+                return state | {"status": "FINISHED"}
+            question = self.order[self.position]
+            return state | {"status": "REVIEW", "question_id": question.row_number,
+                            "position": self.position + 1, "images": self.image_urls(question),
+                            "correct_answer": question.name}
         if self.finished:
             correct = sum(answer["correct"] for answer in self.answers)
             state.update(status="FINISHED", correct=correct, wrong=len(self.order) - correct,

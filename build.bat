@@ -7,7 +7,7 @@ if not exist ".venv\Scripts\python.exe" goto missing
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onefile --console --name SpeciesQuiz --add-data "templates;templates" --add-data "static;static" --distpath "release\SpeciesQuiz" --workpath "build" --specpath "." "app.py"
 if errorlevel 1 goto failed
-copy /y "quiz.xlsx" "release\SpeciesQuiz\quiz.xlsx" >nul
+copy /y "species.xlsx" "release\SpeciesQuiz\species.xlsx" >nul
 if errorlevel 1 goto failed
 copy /y "PORTABLE_README.txt" "release\SpeciesQuiz\README.txt" >nul
 if errorlevel 1 goto failed

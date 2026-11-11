@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>选择题库 · 物种识别考试</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="site-header"><h1>物种识别考试</h1></header>
+  <main>
+    <section class="bank-picker" aria-labelledby="bank-heading">
+      <h2 id="bank-heading">选择题库</h2>
+      <form action="{{ url_for('select_mode') }}" method="get">
+        {% for sheet, name in banks.items() %}
+        <button type="submit" name="bank" value="{{ sheet }}" class="primary">{{ name }}</button>
+        {% endfor %}
+      </form>
+    </section>
+  </main>
+</body>
+</html>

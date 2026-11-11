@@ -6,5 +6,5 @@ dist/
 release/
 *.spec
 
-# Unused candidate question bank
+# Runtime workbook distributed in the Windows release
 /species.xlsx

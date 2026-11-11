@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
 from PIL import Image
 
-from .models import PlantImage, PlantQuestion
+from .models import SpeciesImage, SpeciesQuestion
 
 
 class WorkbookError(ValueError):
@@ -106,7 +106,7 @@ def _cell_images(package, workbook_part, worksheet_part):
                 if media_part not in cache:
                     cache[media_part] = _image_data(package.archive.read(media_part))
                 data, mime_type = cache[media_part]
-                matches.append(PlantImage(coordinate, data, mime_type))
+                matches.append(SpeciesImage(coordinate, data, mime_type))
             if len(matches) != 1:
                 raise ValueError("每个图片单元格必须对应一张图片")
             images[coordinate] = matches[0]
@@ -117,16 +117,16 @@ def _cell_images(package, workbook_part, worksheet_part):
 
 def _is_header(row, has_images):
     values = [cell.value for cell in row]
-    if has_images or not values or values[0] != "芬兰语名称":
+    if has_images or not values or values[0] not in {"物种名称", "芬兰语名称", "名称"}:
         return False
     labels = [(i, value) for i, value in enumerate(values[1:], start=1) if value is not None]
     return bool(labels) and all(value == f"图片{i}" for i, value in labels)
 
 
-def load_plants(path: Path) -> list[PlantQuestion]:
+def load_species(path: Path) -> list[SpeciesQuestion]:
     path = Path(path)
     if not path.is_file():
-        raise WorkbookError("找不到 plants.xlsx，请将题库放在程序根目录后重新启动。")
+        raise WorkbookError("找不到 quiz.xlsx，请将题库放在程序根目录后重新启动。")
     try:
         with zipfile.ZipFile(path) as archive:
             package = Package(archive)
@@ -136,7 +136,7 @@ def load_plants(path: Path) -> list[PlantQuestion]:
                                  if r.attrib["Type"].endswith("/officeDocument"))
             sheet = package.xml(workbook_part).find("{*}sheets/{*}sheet")
             if sheet is None:
-                raise WorkbookError("plants.xlsx 中没有工作表。")
+                raise WorkbookError("quiz.xlsx 中没有工作表。")
             rid = next(v for k, v in sheet.attrib.items() if k.endswith("}id"))
             kind, sheet_part = package.relationships(workbook_part)[rid]
             if kind != "worksheet":
@@ -166,19 +166,19 @@ def load_plants(path: Path) -> list[PlantQuestion]:
                 if name is None or (isinstance(name, str) and not name.strip()):
                     continue
                 if not isinstance(name, str):
-                    errors.append(f"第 {row_number} 行的植物名称必须为文字。")
+                    errors.append(f"第 {row_number} 行的物种名称必须为文字。")
                 elif not row_images:
-                    errors.append(f"第 {row_number} 行存在植物名称“{name}”，但没有找到植物图片。")
+                    errors.append(f"第 {row_number} 行存在物种名称“{name}”，但没有找到物种图片。")
                 else:
-                    questions.append(PlantQuestion(row_number, name, row_images))
+                    questions.append(SpeciesQuestion(row_number, name, row_images))
             if errors:
                 raise WorkbookError("\n".join(errors))
             if not questions:
-                raise WorkbookError("题库中没有有效植物记录，请检查 A 列名称和同行图片。")
+                raise WorkbookError("题库中没有有效物种记录，请检查 A 列名称和同行图片。")
             return questions
         finally:
             workbook.close()
     except WorkbookError:
         raise
     except Exception as exc:
-        raise WorkbookError("无法打开或解析 plants.xlsx，请检查文件是否损坏、被占用或格式不受支持。") from exc
+        raise WorkbookError("无法打开或解析 quiz.xlsx，请检查文件是否损坏、被占用或格式不受支持。") from exc

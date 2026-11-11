@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>植物识别考试</title>
+  <title>物种识别考试</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="{{ url_for('static', filename='js/quiz.js') }}" defer></script>
 </head>
 <body>
-  <header class="site-header"><span class="brand-mark" aria-hidden="true">❧</span><h1>植物识别考试</h1><span class="subtitle">芬兰语植物名称练习</span></header>
+  <header class="site-header"><span class="brand-mark" aria-hidden="true">◉</span><h1>物种识别考试</h1><span class="subtitle">物种名称识别练习</span></header>
   <main>
     <p id="network-error" class="notice" role="alert" hidden></p>
     <section id="quiz" aria-label="当前题目" hidden>
-      <div class="progress-heading"><span>看图识别植物</span><span id="progress"></span></div>
+      <div class="progress-heading"><span>看图识别物种</span><span id="progress"></span></div>
       <div class="progress-track"><div id="progress-bar"></div></div>
       <div id="question-images" class="image-grid"></div>
       <div class="answer-panel">
-        <label for="answer">植物的芬兰语名称</label>
-        <input id="answer" type="text" placeholder="输入植物名称" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <div class="input-tools"><div class="characters" aria-label="芬兰语字符"><button type="button" data-character="ä">ä</button><button type="button" data-character="ö">ö</button><button type="button" data-character="å">å</button></div><span class="hint">Enter 提交 · 再按一次进入下一题</span></div>
+        <label for="answer">物种名称</label>
+        <input id="answer" type="text" placeholder="输入物种名称" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="input-tools"><div class="characters" aria-label="特殊字符快捷输入"><button type="button" data-character="ä">ä</button><button type="button" data-character="ö">ö</button><button type="button" data-character="å">å</button></div><span class="hint">Enter 提交 · 再按一次进入下一题</span></div>
         <div id="feedback" class="feedback" role="status" aria-live="polite" hidden><strong id="verdict"></strong><span>正确答案：<b id="correct-answer"></b></span></div>
         <button id="action" class="primary" type="button">提交</button>
       </div>
@@ -31,6 +31,6 @@
     </section>
     <p id="loading">正在加载题库……</p>
   </main>
-  <dialog id="preview" aria-label="图片放大预览"><button id="close-preview" type="button" aria-label="关闭图片预览">×</button><img id="preview-image" alt="植物图片放大预览"><span>按 Esc 或点击背景关闭</span></dialog>
+  <dialog id="preview" aria-label="图片放大预览"><button id="close-preview" type="button" aria-label="关闭图片预览">×</button><img id="preview-image" alt="物种图片放大预览"><span>按 Esc 或点击背景关闭</span></dialog>
 </body>
 </html>

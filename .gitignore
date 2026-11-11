@@ -5,3 +5,6 @@ build/
 dist/
 release/
 *.spec
+
+# Unused candidate question bank
+/species.xlsx

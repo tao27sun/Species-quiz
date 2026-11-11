@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class PlantImage:
+class SpeciesImage:
     cell: str
     data: bytes
     mime_type: str
 
 
 @dataclass(frozen=True)
-class PlantQuestion:
+class SpeciesQuestion:
     row_number: int
     name: str
-    images: list[PlantImage]
+    images: list[SpeciesImage]

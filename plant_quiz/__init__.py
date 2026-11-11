@@ -1,1 +1,0 @@
-"""Local plant identification quiz."""

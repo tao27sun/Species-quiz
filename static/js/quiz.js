@@ -15,7 +15,7 @@ function imageGrid(urls, container) {
     button.setAttribute("aria-label", `放大图片 ${index + 1}`);
     const image = document.createElement("img");
     image.src = url;
-    image.alt = `植物图片 ${index + 1}`;
+    image.alt = `物种图片 ${index + 1}`;
     image.addEventListener("error", () => showError("图片加载失败，请刷新页面；若仍失败，请重新启动程序。"));
     button.append(image);
     button.addEventListener("click", () => {

@@ -5,15 +5,15 @@ cd /d "%~dp0"
 if not exist ".venv\Scripts\python.exe" goto missing
 ".venv\Scripts\python.exe" -m pip install "pyinstaller>=6,<7"
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onefile --console --name PlantQuiz --add-data "templates;templates" --add-data "static;static" --distpath "release\PlantQuiz" --workpath "build" --specpath "." "app.py"
+".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onefile --console --name SpeciesQuiz --add-data "templates;templates" --add-data "static;static" --distpath "release\SpeciesQuiz" --workpath "build" --specpath "." "app.py"
 if errorlevel 1 goto failed
-copy /y "plants.xlsx" "release\PlantQuiz\plants.xlsx" >nul
+copy /y "quiz.xlsx" "release\SpeciesQuiz\quiz.xlsx" >nul
 if errorlevel 1 goto failed
-copy /y "PORTABLE_README.txt" "release\PlantQuiz\README.txt" >nul
+copy /y "PORTABLE_README.txt" "release\SpeciesQuiz\README.txt" >nul
 if errorlevel 1 goto failed
-powershell -NoProfile -Command "Compress-Archive -Path 'release\PlantQuiz' -DestinationPath 'release\PlantQuiz-Windows-x64.zip' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path 'release\SpeciesQuiz' -DestinationPath 'release\SpeciesQuiz-Windows-x64.zip' -Force"
 if errorlevel 1 goto failed
-echo 打包完成：release\PlantQuiz-Windows-x64.zip
+echo 打包完成：release\SpeciesQuiz-Windows-x64.zip
 pause
 exit /b 0
 :missing

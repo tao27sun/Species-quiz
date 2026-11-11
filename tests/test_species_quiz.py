@@ -11,9 +11,9 @@ from openpyxl import Workbook
 from PIL import Image
 
 from app import ROOT, LocalServer, create_app, main
-from plant_quiz.excel_loader import WorkbookError, load_plants
-from plant_quiz.models import PlantImage, PlantQuestion
-from plant_quiz.quiz import Quiz, QuizError
+from species_quiz.excel_loader import WorkbookError, load_species
+from species_quiz.models import SpeciesImage, SpeciesQuestion
+from species_quiz.quiz import Quiz, QuizError
 
 
 S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -39,7 +39,8 @@ def fixture(path, names=None, cells=None, header=False, corrupt=None):
     for row, name in names.items():
         ws.cell(row, 1, name)
     if header:
-        for col, value in enumerate(["芬兰语名称", "图片1", "图片2", "图片3"], 1):
+        header_name = "芬兰语名称" if header is True else header
+        for col, value in enumerate([header_name, "图片1", "图片2", "图片3"], 1):
             ws.cell(1, col, value)
     for coordinate in cells:
         ws[coordinate] = "#VALUE!"
@@ -96,18 +97,18 @@ class LoaderTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.path = Path(self.temp.name) / "plants.xlsx"
+        self.path = Path(self.temp.name) / "quiz.xlsx"
 
     def test_real_workbook(self):
-        bank = load_plants(ROOT / "plants.xlsx")
-        self.assertEqual(len(bank), 62)
-        self.assertEqual(sum(len(q.images) for q in bank), 99)
+        bank = load_species(ROOT / "quiz.xlsx")
+        self.assertEqual(len(bank), 67)
+        self.assertEqual(sum(len(q.images) for q in bank), 124)
         images = {image.cell: image for question in bank for image in question.images}
-        self.assertEqual(len({image.data for image in images.values()}), 99)
+        self.assertEqual(len({image.data for image in images.values()}), 124)
         self.assertEqual(bank[0].row_number, 2)
-        self.assertEqual(bank[-1].row_number, 63)
+        self.assertEqual(bank[-1].row_number, 68)
         # Independent XML reference walk for every cell, not just image counts.
-        with zipfile.ZipFile(ROOT / "plants.xlsx") as z:
+        with zipfile.ZipFile(ROOT / "quiz.xlsx") as z:
             xml = lambda name: ET.fromstring(z.read(name))
             sheet = xml("xl/worksheets/sheet1.xml")
             metadata = xml("xl/metadata.xml")
@@ -126,7 +127,7 @@ class LoaderTests(unittest.TestCase):
 
     def test_permuted_mapping_blank_row_late_column_conversion(self):
         fixture(self.path)
-        bank = load_plants(self.path)
+        bank = load_species(self.path)
         self.assertEqual([q.row_number for q in bank], [1, 3])
         self.assertEqual([i.cell for i in bank[0].images], ["B1", "C1", "AA1"])
         self.assertEqual([Image.open(BytesIO(i.data)).getpixel((0, 0)) for i in bank[0].images],
@@ -135,44 +136,48 @@ class LoaderTests(unittest.TestCase):
         self.assertEqual(bank[0].images[0].data, bank[1].images[0].data)
 
     def test_header_and_single_image(self):
-        fixture(self.path, {2: "testplant"}, {"B2": 0}, header=True)
-        bank = load_plants(self.path)
+        fixture(self.path, {2: "testspecies"}, {"B2": 0}, header=True)
+        bank = load_species(self.path)
         self.assertEqual([(q.row_number, len(q.images)) for q in bank], [(2, 1)])
+
+    def test_generic_header(self):
+        fixture(self.path, {2: "testspecies"}, {"B2": 0}, header="物种名称")
+        self.assertEqual(load_species(self.path)[0].name, "testspecies")
 
     def test_missing_image_not_silently_skipped(self):
         fixture(self.path, {2: "plant", 4: "missing"}, {"B2": 0})
         with self.assertRaisesRegex(WorkbookError, "第 4 行.*missing"):
-            load_plants(self.path)
+            load_species(self.path)
 
     def test_arbitrary_header_not_skipped(self):
         fixture(self.path, {1: "Name", 2: "plant"}, {"B2": 0})
         with self.assertRaisesRegex(WorkbookError, "第 1 行"):
-            load_plants(self.path)
+            load_species(self.path)
 
     def test_corruptions(self):
         for corruption in ["index", "image", "relationship", "metadata", "missing_vm"]:
             with self.subTest(corruption=corruption):
                 fixture(self.path, corrupt=corruption)
                 with self.assertRaisesRegex(WorkbookError, "B1|元数据"):
-                    load_plants(self.path)
+                    load_species(self.path)
 
     def test_image_only_row_is_ignored(self):
         fixture(self.path, {3: "plant"}, {"B1": 0, "B3": 1})
-        self.assertEqual([q.row_number for q in load_plants(self.path)], [3])
+        self.assertEqual([q.row_number for q in load_species(self.path)], [3])
 
     def test_missing_invalid_empty(self):
         with self.assertRaisesRegex(WorkbookError, "找不到"):
-            load_plants(self.path)
+            load_species(self.path)
         self.path.write_bytes(b"not a workbook")
         with self.assertRaises(WorkbookError):
-            load_plants(self.path)
+            load_species(self.path)
         fixture(self.path, {}, {})
-        with self.assertRaisesRegex(WorkbookError, "没有有效植物"):
-            load_plants(self.path)
+        with self.assertRaisesRegex(WorkbookError, "没有有效物种"):
+            load_species(self.path)
 
 
 def question(row=1, name="metsäkuusi"):
-    return PlantQuestion(row, name, [PlantImage(f"B{row}", png(), "image/png")])
+    return SpeciesQuestion(row, name, [SpeciesImage(f"B{row}", png(), "image/png")])
 
 
 class QuizTests(unittest.TestCase):
@@ -191,7 +196,7 @@ class QuizTests(unittest.TestCase):
 
     def test_coverage_and_restart(self):
         bank = [question(i) for i in range(1, 8)]
-        with patch("plant_quiz.quiz.random.shuffle") as shuffle:
+        with patch("species_quiz.quiz.random.shuffle") as shuffle:
             quiz = Quiz(bank)
             old_round = quiz.round_id
             self.assertEqual(Counter(q.row_number for q in quiz.order), Counter(q.row_number for q in bank))
@@ -228,7 +233,7 @@ class QuizTests(unittest.TestCase):
 
 class AppTests(unittest.TestCase):
     def test_real_workbook_complete_round(self):
-        bank = load_plants(ROOT / "plants.xlsx")
+        bank = load_species(ROOT / "quiz.xlsx")
         by_row = {q.row_number: q for q in bank}
         client = create_app(questions=bank).test_client()
         state = client.get("/api/state").json
@@ -280,7 +285,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result["mistakes"], [])
 
     def test_error_page(self):
-        with patch("app.load_plants", side_effect=WorkbookError("第 17 行缺图")), patch("flask.Flask.log_exception"):
+        with patch("app.load_species", side_effect=WorkbookError("第 17 行缺图")), patch("flask.Flask.log_exception"):
             with self.assertLogs(level="ERROR"):
                 client = create_app().test_client()
         response = client.get("/")
@@ -290,7 +295,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(client.get("/api/state").status_code, 503)
 
     def test_load_only_once(self):
-        with patch("app.load_plants", return_value=[question()]) as loader:
+        with patch("app.load_species", return_value=[question()]) as loader:
             client = create_app().test_client()
             body = client.get("/api/state").json | {"answer": ""}
             client.post("/api/submit", json=body)

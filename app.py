@@ -8,8 +8,8 @@ import webbrowser
 from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.serving import BaseWSGIServer
 
-from plant_quiz.excel_loader import WorkbookError, load_plants
-from plant_quiz.quiz import Quiz, QuizError
+from species_quiz.excel_loader import WorkbookError, load_species
+from species_quiz.quiz import Quiz, QuizError
 
 
 BUNDLE_ROOT = Path(__file__).resolve().parent
@@ -32,7 +32,7 @@ def create_app(workbook_path=None, questions=None):
     lock = threading.Lock()
     error = None
     try:
-        bank = questions if questions is not None else load_plants(workbook_path or ROOT / "plants.xlsx")
+        bank = questions if questions is not None else load_species(workbook_path or ROOT / "quiz.xlsx")
         quiz = Quiz(bank)
     except WorkbookError as exc:
         error = str(exc)
@@ -94,9 +94,9 @@ def main():
     try:
         server = LocalServer("127.0.0.1", 5000, app)
     except (OSError, SystemExit):
-        print("无法启动：端口 5000 可能已被占用。请关闭已运行的植物考试程序后重试。")
+        print("无法启动：端口 5000 可能已被占用。请关闭已运行的物种考试程序后重试。")
         return 1
-    print("植物识别考试已启动：http://127.0.0.1:5000\n关闭此窗口或按 Ctrl+C 结束程序。")
+    print("物种识别考试已启动：http://127.0.0.1:5000\n关闭此窗口或按 Ctrl+C 结束程序。")
     # The listening socket is bound before opening the browser; no reloader.
     threading.Thread(target=webbrowser.open, args=("http://127.0.0.1:5000",), daemon=True).start()
     try:
